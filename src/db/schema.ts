@@ -5,3 +5,10 @@ export const todos = pgTable('todos', {
   title: text().notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 })
+
+export const ideas = pgTable('ideas', {
+  id: serial().primaryKey(),
+  idea: text().notNull(),
+  topic: text().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
