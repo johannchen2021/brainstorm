@@ -2,6 +2,7 @@ import { useForm, useStore } from '@tanstack/react-form'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { desc } from 'drizzle-orm'
+import { QRCodeSVG } from 'qrcode.react'
 import { useState } from 'react'
 import Markdown from 'react-markdown'
 import { z } from 'zod'
@@ -10,6 +11,8 @@ import { db } from '#/db'
 import { ideas } from '#/db/schema'
 import { summarizeIdeas } from '#/server/summary'
 import { getTopics } from '#/server/topics'
+
+const HOME_URL = 'https://brainstorm-result.vercel.app/'
 
 const ideaSchema = z.object({
   idea: z.string().trim().min(1, 'Please enter an idea'),
@@ -184,6 +187,20 @@ function IdeaBoard() {
       {filteredIdeas.length > 0 && (
         <TopicSummary key={selectedTopicId} topicId={selectedTopicId} />
       )}
+
+      <footer className="mt-12 hidden flex-col items-center gap-2 border-t border-border pt-8 md:flex">
+        <a href={HOME_URL} aria-label="Open Brainstorm home page">
+          <QRCodeSVG
+            value={HOME_URL}
+            size={160}
+            marginSize={2}
+            className="rounded-md bg-white"
+          />
+        </a>
+        <a href={HOME_URL} className="text-sm">
+          {HOME_URL}
+        </a>
+      </footer>
     </main>
   )
 }
