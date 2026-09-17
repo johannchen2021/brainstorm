@@ -1,4 +1,9 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import {
+  HeadContent,
+  Link,
+  Scripts,
+  createRootRoute,
+} from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
@@ -35,6 +40,23 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        <nav className="mx-auto flex max-w-2xl gap-6 px-8 pt-6 text-sm font-semibold">
+          <Link
+            to="/"
+            className="nav-link"
+            activeProps={{ className: 'is-active' }}
+            activeOptions={{ exact: true }}
+          >
+            Ideas
+          </Link>
+          <Link
+            to="/topics"
+            className="nav-link"
+            activeProps={{ className: 'is-active' }}
+          >
+            Topics
+          </Link>
+        </nav>
         {children}
         <TanStackDevtools
           config={{

@@ -1,17 +1,19 @@
 import { useForm, useStore } from '@tanstack/react-form'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { desc } from 'drizzle-orm'
+import { useState } from 'react'
+import Markdown from 'react-markdown'
 import { z } from 'zod'
 
 import { db } from '#/db'
 import { ideas } from '#/db/schema'
-
-const TOPICS = ['Nex10', '釋經講道', '其它'] as const
+import { summarizeIdeas } from '#/server/summary'
+import { getTopics } from '#/server/topics'
 
 const ideaSchema = z.object({
   idea: z.string().trim().min(1, 'Please enter an idea'),
-  topic: z.enum(TOPICS),
+  topicId: z.number().int(),
 })
 
 const getIdeas = createServerFn({ method: 'GET' }).handler(() =>
@@ -27,17 +29,38 @@ const createIdea = createServerFn({ method: 'POST' })
 
 export const Route = createFileRoute('/')({
   component: Home,
-  loader: () => getIdeas(),
+  loader: async () => {
+    const [savedIdeas, topics] = await Promise.all([getIdeas(), getTopics()])
+    return { savedIdeas, topics }
+  },
 })
 
 function Home() {
-  const savedIdeas = Route.useLoaderData()
+  const { topics } = Route.useLoaderData()
+
+  if (topics.length === 0) {
+    return (
+      <main className="mx-auto max-w-2xl p-8">
+        <h1 className="display-title text-4xl font-bold">Brainstorm</h1>
+        <p className="mt-6">
+          No topics yet. <Link to="/topics">Create a topic</Link> to start
+          adding ideas.
+        </p>
+      </main>
+    )
+  }
+
+  return <IdeaBoard />
+}
+
+function IdeaBoard() {
+  const { savedIdeas, topics } = Route.useLoaderData()
   const router = useRouter()
 
   const form = useForm({
     defaultValues: {
       idea: '',
-      topic: TOPICS[0] as (typeof TOPICS)[number],
+      topicId: topics[0].id,
     },
     validators: { onSubmit: ideaSchema },
     onSubmit: async ({ value, formApi }) => {
@@ -47,8 +70,14 @@ function Home() {
     },
   })
 
-  const selectedTopic = useStore(form.store, (state) => state.values.topic)
-  const filteredIdeas = savedIdeas.filter((item) => item.topic === selectedTopic)
+  const selectedTopicId = useStore(
+    form.store,
+    (state) => state.values.topicId,
+  )
+  const selectedTopic = topics.find((topic) => topic.id === selectedTopicId)
+  const filteredIdeas = savedIdeas.filter(
+    (item) => item.topicId === selectedTopicId,
+  )
 
   return (
     <main className="mx-auto max-w-2xl p-8">
@@ -61,7 +90,7 @@ function Home() {
           form.handleSubmit()
         }}
       >
-        <form.Field name="topic">
+        <form.Field name="topicId">
           {(field) => (
             <div className="space-y-1">
               <label htmlFor={field.name} className="block text-sm font-medium">
@@ -70,16 +99,14 @@ function Home() {
               <select
                 id={field.name}
                 name={field.name}
-                value={field.state.value}
+                value={String(field.state.value)}
                 onBlur={field.handleBlur}
-                onChange={(e) =>
-                  field.handleChange(e.target.value as (typeof TOPICS)[number])
-                }
+                onChange={(e) => field.handleChange(Number(e.target.value))}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
-                {TOPICS.map((topic) => (
-                  <option key={topic} value={topic}>
-                    {topic}
+                {topics.map((topic) => (
+                  <option key={topic.id} value={topic.id}>
+                    {topic.name}
                   </option>
                 ))}
               </select>
@@ -125,7 +152,9 @@ function Home() {
       </form>
 
       <section className="mt-10">
-        <h2 className="text-xl font-semibold">Ideas · {selectedTopic}</h2>
+        <h2 className="text-xl font-semibold">
+          Ideas · {selectedTopic?.name}
+        </h2>
         {filteredIdeas.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
             No ideas for this topic yet.
@@ -139,7 +168,7 @@ function Home() {
               >
                 <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span className="rounded-full bg-secondary px-2 py-0.5 font-medium text-secondary-foreground">
-                    {item.topic}
+                    {selectedTopic?.name}
                   </span>
                   <time dateTime={new Date(item.createdAt).toISOString()}>
                     {new Date(item.createdAt).toLocaleString()}
@@ -151,6 +180,48 @@ function Home() {
           </ul>
         )}
       </section>
+
+      {filteredIdeas.length > 0 && (
+        <TopicSummary key={selectedTopicId} topicId={selectedTopicId} />
+      )}
     </main>
+  )
+}
+
+function TopicSummary({ topicId }: { topicId: number }) {
+  const [summary, setSummary] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, setIsPending] = useState(false)
+
+  async function summarize() {
+    setIsPending(true)
+    setError(null)
+    try {
+      const result = await summarizeIdeas({ data: { topicId } })
+      setSummary(result.summary)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong')
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <section className="mt-6">
+      <button
+        type="button"
+        onClick={summarize}
+        disabled={isPending}
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+      >
+        {isPending ? '總結中…' : '總結報告'}
+      </button>
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+      {summary && (
+        <div className="prose prose-sm mt-4 max-w-none rounded-md border border-border bg-card p-4">
+          <Markdown>{summary}</Markdown>
+        </div>
+      )}
+    </section>
   )
 }
