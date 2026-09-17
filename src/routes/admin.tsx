@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
+import Markdown from 'react-markdown'
 import { z } from 'zod'
 
 import {
@@ -11,6 +12,7 @@ import {
   logoutAdmin,
   updateIdea,
 } from '#/server/admin'
+import { summarizeIdeas } from '#/server/summary'
 import { getTopics } from '#/server/topics'
 
 export const Route = createFileRoute('/admin')({
@@ -163,7 +165,49 @@ function AdminIdeas() {
           </ul>
         )}
       </section>
+
+      {topicFilter !== undefined && filteredIdeas.length > 0 && (
+        <TopicSummary key={topicFilter} topicId={topicFilter} />
+      )}
     </main>
+  )
+}
+
+function TopicSummary({ topicId }: { topicId: number }) {
+  const [summary, setSummary] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, setIsPending] = useState(false)
+
+  async function summarize() {
+    setIsPending(true)
+    setError(null)
+    try {
+      const result = await summarizeIdeas({ data: { topicId } })
+      setSummary(result.summary)
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <section className="mt-6">
+      <button
+        type="button"
+        onClick={summarize}
+        disabled={isPending}
+        className={primaryButtonClass}
+      >
+        {isPending ? '總結中…' : '總結報告'}
+      </button>
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+      {summary && (
+        <div className="prose prose-sm mt-4 max-w-none rounded-md border border-border bg-card p-4">
+          <Markdown>{summary}</Markdown>
+        </div>
+      )}
+    </section>
   )
 }
 

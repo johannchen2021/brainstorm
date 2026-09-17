@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { db } from '#/db'
 import { ideas, topics } from '#/db/schema'
+import { assertAdmin } from '#/server/admin-session.server'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const DEFAULT_MODEL = 'openai/gpt-5.6-luna'
@@ -24,6 +25,8 @@ type ChatCompletionResponse = {
 export const summarizeIdeas = createServerFn({ method: 'POST' })
   .validator(z.object({ topicId: z.number().int() }))
   .handler(async ({ data }) => {
+    assertAdmin()
+
     const apiKey = process.env.OPENROUTER_API_KEY
     if (!apiKey) {
       throw new Error('OPENROUTER_API_KEY is not set')

@@ -3,13 +3,10 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { desc } from 'drizzle-orm'
 import { QRCodeSVG } from 'qrcode.react'
-import { useState } from 'react'
-import Markdown from 'react-markdown'
 import { z } from 'zod'
 
 import { db } from '#/db'
 import { ideas } from '#/db/schema'
-import { summarizeIdeas } from '#/server/summary'
 import { getTopics } from '#/server/topics'
 
 const HOME_URL = 'https://brainstorm-result.vercel.app/'
@@ -184,10 +181,6 @@ function IdeaBoard() {
         )}
       </section>
 
-      {filteredIdeas.length > 0 && (
-        <TopicSummary key={selectedTopicId} topicId={selectedTopicId} />
-      )}
-
       <footer className="mt-12 hidden flex-col items-center gap-2 border-t border-border pt-8 md:flex">
         <a href={HOME_URL} aria-label="Open Brainstorm home page">
           <QRCodeSVG
@@ -202,43 +195,5 @@ function IdeaBoard() {
         </a>
       </footer>
     </main>
-  )
-}
-
-function TopicSummary({ topicId }: { topicId: number }) {
-  const [summary, setSummary] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isPending, setIsPending] = useState(false)
-
-  async function summarize() {
-    setIsPending(true)
-    setError(null)
-    try {
-      const result = await summarizeIdeas({ data: { topicId } })
-      setSummary(result.summary)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong')
-    } finally {
-      setIsPending(false)
-    }
-  }
-
-  return (
-    <section className="mt-6">
-      <button
-        type="button"
-        onClick={summarize}
-        disabled={isPending}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
-      >
-        {isPending ? '總結中…' : '總結報告'}
-      </button>
-      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-      {summary && (
-        <div className="prose prose-sm mt-4 max-w-none rounded-md border border-border bg-card p-4">
-          <Markdown>{summary}</Markdown>
-        </div>
-      )}
-    </section>
   )
 }
